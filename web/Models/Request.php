@@ -3,6 +3,7 @@
 namespace Web\Models;
 
 use Web\Models\Redirect;
+use Languages\Message;
 
 	class InvalidRequestMethod extends \ErrorException {};
 
@@ -13,6 +14,7 @@ use Web\Models\Redirect;
 		public array $files = array();
 		protected array $post_values = array();
 		protected array $get_values = array();
+		public Validate $validate;
 
 		public function __construct() {
 			$this->method = $_SERVER['REQUEST_METHOD'];
@@ -37,16 +39,18 @@ use Web\Models\Redirect;
 		}
 
 		protected function with_get() {
-			$this->get_values = $_GET;
 			foreach ( $_GET as $key => $value) {
-				$this->values[] = new Variable($key, $value);
+				$variable = new Variable($key, $value);
+				$this->values[] = $variable;
+				$this->get_values[] = $variable;
 			}
 		}
 
 		protected function with_post() {
-			$this->post_values = $_POST;
 			foreach ( $_POST as $key => $value) {
-				$this->values[] = new Variable($key, $value);
+				$variable = new Variable($key, $value);
+				$this->values[] = $variable;
+				$this->post_values[] = $variable;
 			}
 		}
 
@@ -57,17 +61,42 @@ use Web\Models\Redirect;
 		}
 
 		public function get($key) {
-			if ( empty($this->get_values[$key]) ) {
+			$element = array_filter(
+				$this->get_values,
+				function ($o) use ($key) {
+					return $o->name != $key;
+				}
+			);
+			if ( count( $element ) < 1 ) {
 				return false;
 			}
-			return $this->get_values[$key];
+			return $element[0];
 		}
 
 		public function post($key) {
-			if ( empty($this->post_values[$key]) ) {
+			$element = array_filter(
+				$this->post_values,
+				function ($o) use ($key) {
+					return $o->name != $key;
+				}
+			);
+			if ( count( $element ) < 1 ) {
 				return false;
 			}
-			return $this->post_values[$key];
+			return $element[0];
+		}
+
+		public function file($key) {
+			$file = array_filter(
+				$this->files,
+				function ($o) use ($key) {
+					return $o->key != $key;
+				}
+			);
+			if ( count( $file ) < 1 ) {
+				return false;
+			}
+			return $file[0];
 		}
 
 		///////////////////////////////////////////////////////
@@ -175,5 +204,39 @@ use Web\Models\Redirect;
 			$path .= "{$destination}{$name}.{$this->extension}";
 			$status = move_uploaded_file($this->tmp_name, $path);
 			return $status;
+		}
+	}
+
+	class Validate {
+		public static function scheme($scheme, Request $request, string | bool $force_method = "POST") {
+			foreach ( $scheme as $name => $settings ) {
+				if ( in_array("file", $settings) ) {
+					$value = $request->file($name);
+				} else {
+					switch ( $force_method ) {
+						case "POST":
+							$value = $request->post($name);
+							break;
+
+						case "GET":
+							$value = $request->get($name);
+							break;
+
+						case false:
+							$value = $request->post($name) || $value = $request->get($name);
+							break;
+
+						default:
+							throw new \BadMethodCallException("Method {$force_method} is not suported, use POST, GET, or false for no method specified.");
+					}
+				}
+				if ( in_array("required", $settings) && $value === false ) {
+					Redirect::back(error: Message::validate_response("no_required_value", $name, $value));
+				} elseif ( $value === false ) {
+					break;
+				}
+
+
+			}
 		}
 	}

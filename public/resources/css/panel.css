@@ -1,0 +1,188 @@
+/* PANEL rules */
+
+@media screen and ( max-width: 25rem ) {
+	manage-panel {
+		width: 100vw;
+	}
+
+	manage-panel > #panel-main {
+		flex: 1;
+	}
+}
+
+manage-panel {
+	--background-col-one: #000000;
+	--font-color-one: #ffffff;
+	--background-col-two: #ffffff;
+	--font-color-two: #000000;
+	--accent-color: #0096c7;
+	position: fixed;
+	display: flex;
+	align-items: center;
+	top: 0;
+	height: 100vh;
+}
+
+	manage-panel > #panel-bar {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		justify-content: space-around;
+		padding: 1rem 0rem;
+		background-color: var(--background-col-one);
+		color: var(--font-color-one);
+		z-index: 99;
+		width: 2rem;
+		transition: all 0.2s cubic-bezier(.79,.14,.15,.86);
+	}
+
+		manage-panel > #panel-bar > panel-button.ion-icon {
+			color: inherit;
+			margin-block: 0.2rem;
+			line-height: 2rem;
+			height: 2rem;
+			text-align: center;
+			transition: all 0.2s cubic-bezier(.79,.14,.15,.86);
+		}
+
+			manage-panel > #panel-bar > panel-button.ion-icon:hover {
+				color: var(--accent-color);
+			}
+
+			manage-panel > #panel-bar panel-button > ion-icon {
+				height: 1.5rem;
+				width: 1.5rem;
+			}
+
+	manage-panel > #panel-main {
+		display: none;
+		transform: translateX(10rem);
+		min-width: 20rem;
+		height: 100%;
+		border-inline: 1px solid var(--accent-color);
+	}
+
+		manage-panel > #panel-main > .panel-category {
+			display: none;
+			color: var(--font-color-two);
+			background-color: var(--background-col-two);
+			width: 100%;
+			height: 100%;
+		}
+
+	manage-panel[data-category="articles"] > #panel-main > .panel-category[data-element_category="articles"] {
+		display: inline-block;
+	}
+
+	manage-panel[data-category="pages"] > #panel-main > .panel-category[data-element_category="pages"] {
+		display: inline-block;
+	}
+
+	manage-panel[data-category="users"] > #panel-main > .panel-category[data-element_category="users"] {
+		display: inline-block;
+	}
+
+	manage-panel[data-category="settings"] > #panel-main > .panel-category[data-element_category="settings"] {
+		display: inline-block;
+	}
+
+	manage-panel .user-list {
+		overflow-y: auto;
+		min-height: 10rem;
+		height: 50%;
+		padding: 0.2rem 0.5rem;
+		margin: 0.5rem;
+		border-block: 1px solid var(--font-color-two);
+		/*box-shadow: 0 0 5px #000 inset;*/
+		scrollbar-width: thin;
+	}
+
+	manage-panel input[type="text"] {
+		border: 1px solid black;
+		background: transparent;
+		border-radius: 0.2rem;
+		width: 80%;
+	}
+
+	manage-panel input[readonly="true"] {
+		border: 1px solid transparent;
+		background: transparent;
+	}
+
+	/* PANEL righties */
+
+	manage-panel.right {
+		flex-direction: row-reverse;
+		right: 0;
+	}
+
+	manage-panel.right > #panel-bar {
+		border-radius: 1rem 0 0 1rem;
+		animation-name: panel-bar-right;
+		animation-duration: 0.2s;
+		animation-timing-function: cubic-bezier(0.075, 0.82, 0.165, 1);
+	}
+
+	@keyframes panel-bar-right {
+		from {transform: translateX(-2rem);}
+		to {transform: translateX(0);}
+	}
+
+.panel-notification-container {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 0.2rem;
+}
+
+	.panel-notification-container > * {
+		border: 1px solid;
+		border-radius: 0.5rem;
+		padding: 0.5rem;
+		width: 100%;
+	}
+
+	.panel-notification-container .panel-notification-error {
+		color: #5d0000;
+		background-color: #ff00007d;
+	}
+
+	.panel-notification-container .panel-notification-message {
+		color: #004600;
+		background-color: #0080007d;
+	}
+/* PANEL lefties */
+manage-panel.left {
+	left: 0;
+}
+
+	manage-panel.left > #panel-bar {
+		border-radius: 0 1rem 1rem 0;
+		animation-name: panel-bar-left;
+		animation-duration: 0.2s;
+		animation-timing-function: cubic-bezier(0.075, 0.82, 0.165, 1);
+	}
+
+	@keyframes panel-bar-left {
+		from {transform: translateX(2rem);}
+		to {transform: translateX(0);}
+	}
+
+/* PANEL expanded */
+
+manage-panel[data-expand="true"] {
+	background-color: var(--background-col-one);
+}
+
+	manage-panel[data-expand="true"] > #panel-bar {
+		align-self: flex-start;
+		border-radius: 0;
+	}
+
+	manage-panel[data-expand="true"] > #panel-main {
+		display: inline-block;
+		transform: translateX(0);
+	}

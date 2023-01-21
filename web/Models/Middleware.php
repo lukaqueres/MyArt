@@ -2,6 +2,7 @@
 namespace Web\Models;
 
     use Dependencies\Session;
+    use Web\Models\Redirect;
 
     class Middleware {
 
@@ -9,7 +10,7 @@ namespace Web\Models;
             if ( Session::has("user") && Session::get("authorized") ) {
                 return true;
             } else {
-                redirect( url:$GLOBALS["auth_redirect_unauthorized"], statusCode: 303, exit: true);
+                Redirect::back(error: "Authentication failed");
                 return false;
             }
         }
@@ -19,7 +20,7 @@ namespace Web\Models;
                 return true;
             } else {
                 Session::set("error", "You can not do that");
-                redirect( url:$GLOBALS['urlPath'], statusCode: 303, exit: true);
+                Redirect::back(error: "Authentication failed");
                 return false;
             }
         }

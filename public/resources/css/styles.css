@@ -66,6 +66,7 @@ user-details {
     user-details .avatar {
         width: 2rem;
         height: 2rem;
+        object-fit: cover;
         border-radius: 100rem;
         margin-right: 0.5rem;
     }

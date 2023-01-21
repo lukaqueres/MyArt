@@ -10,7 +10,7 @@
 
     use Dependencies\Session;
 
-    use Dependencies\User;
+    use App\Models\User;
 
     class AuthController extends Controller {
 

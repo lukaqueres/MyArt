@@ -7,7 +7,8 @@ class UserDetails extends HTMLElement {
 		if (this.getAttribute("edit")) {
 			let form = document.createElement("form");
 			form.setAttribute("method", "POST");
-			form.setAttribute("action", "/myart/users/edit/user");
+			form.setAttribute("enctype", "multipart/form-data");
+			form.setAttribute("action", "/myart/users/" + this.getAttribute("u_id") + "/edit");
 			container.appendChild(form);
 			container = form;
 		}
@@ -23,7 +24,7 @@ class UserDetails extends HTMLElement {
 					let form = document.createElement("form");
 					form.setAttribute("enctype", "multipart/form-data");
 					form.setAttribute("method", "POST");
-					form.setAttribute("action", "/myart/users/edit/user");
+					form.setAttribute("action", "/myart/users/add");
 					let img = document.createElement("input");
 					img.classList.add("avatar");
 					img.addEventListener("change", function () {
@@ -119,6 +120,7 @@ class UserDetails extends HTMLElement {
 			let transfer = document.createElement("button");
 			transfer.setAttribute("type", "submit");
 			transfer.setAttribute("name", "action");
+			transfer.setAttribute("formaction", "/myart/users/" + this.getAttribute("u_id") + "/change-owner");
 			transfer.setAttribute("value", "change_owner");
 			transfer.innerText = "Transfer ownership";
 			buttons.appendChild(transfer);
@@ -169,6 +171,7 @@ class UserDetails extends HTMLElement {
 			deleteUs.setAttribute("type", "submit");
 			deleteUs.setAttribute("name", "action");
 			deleteUs.classList.add("edit-buttons");
+			deleteUs.setAttribute("formaction", "/myart/users/" + form.parentElement.getAttribute("u_id") + "/delete");
 			deleteUs.classList.add("edit");
 			deleteUs.setAttribute("value", "delete_user");
 			deleteUs.innerText = "Delete user";

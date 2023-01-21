@@ -2,7 +2,7 @@
 
 namespace Web\Models;
 
-use Web\Models\Redirect;
+#use Web\Models\Redirect;
 use Languages\Message;
 
 	class InvalidRequestMethod extends \ErrorException {};
@@ -14,7 +14,7 @@ use Languages\Message;
 		public array $files = array();
 		protected array $post_values = array();
 		protected array $get_values = array();
-		public Validate $validate;
+		public string $validate = Validate::class;
 
 		public function __construct() {
 			$this->method = $_SERVER['REQUEST_METHOD'];
@@ -33,7 +33,6 @@ use Languages\Message;
 
 			if ( count($_POST) > 0 ) { $this->with_post(); }
 			if ( count($_GET) > 0 ) { $this->with_get(); }
-
 			if ( count($_FILES) > 0 ) { $this->with_files(); }
 
 		}
@@ -56,7 +55,18 @@ use Languages\Message;
 
 		protected function with_files() {
 			foreach ( $_FILES as $key => $file ) {
-				$this->files[] = new File($key, $file);
+				$empty = false;
+				foreach ( $file as $name => $properity ) {
+					if ( !$properity && $name <> "error" ) {
+						$empty = true;
+						break;
+					}
+				}
+				if ( $empty ) {
+					$this->files[] = new File($key, $file, empty: true);
+				} else {
+					$this->files[] = new File($key, $file);
+				}
 			}
 		}
 
@@ -64,72 +74,275 @@ use Languages\Message;
 			$element = array_filter(
 				$this->get_values,
 				function ($o) use ($key) {
-					return $o->name != $key;
+					return $o->name == $key;
 				}
 			);
 			if ( count( $element ) < 1 ) {
 				return false;
 			}
-			return $element[0];
+			return reset($element);
 		}
 
 		public function post($key) {
 			$element = array_filter(
 				$this->post_values,
 				function ($o) use ($key) {
-					return $o->name != $key;
+					return $o->name == $key;
 				}
 			);
 			if ( count( $element ) < 1 ) {
 				return false;
 			}
-			return $element[0];
+			return reset($element);
 		}
 
 		public function file($key) {
 			$file = array_filter(
 				$this->files,
 				function ($o) use ($key) {
-					return $o->key != $key;
+					return $o->key == $key;
 				}
 			);
 			if ( count( $file ) < 1 ) {
 				return false;
 			}
-			return $file[0];
+			return reset($file);
 		}
 
-		///////////////////////////////////////////////////////
-		/*
-		public static function validate( $validation ) {
-			$passes = array();
-			foreach ( $validation as $name => $checks ) {
-				if ( empty($_POST[$name]) && in_array("required", $checks)) {
-					return Redirect::back(error: "Missing required argument {$name}");
-				} elseif (empty($_POST[$name])) {
-					continue;
+		public function addVar( $key, $value, $method = "POST" ) {
+			$variable = new Variable($key, $value);
+			$this->values[] = $variable;
+			if ( $method == "POST" ) {
+				$this->post_values[] = $variable;
+			} elseif ( $method == "GET" ) {
+				$this->get_values[] = $variable;
+			}
+		}
+	}
+
+	class Variable {
+		public string $name;
+		public mixed $value;
+
+		public function __construct(string $name, mixed $value) {
+			$this->name = $name;
+			$this->value = trim($value);
+		}
+
+		public function __toString(): string {
+			return $this->value;
+		}
+	}
+
+	class Validate {
+
+		public static function scheme($scheme, Request $request, string | bool $force_method = "POST", bool $redirectInvalid = true): bool {
+			$resultSet = array();
+			foreach ( $scheme as $name => $settings ) {
+				if ( in_array("file", $settings) ) {
+					$variable = $request->file($name);
+					if ( $variable === false || $variable->empty ) {
+						$variable = false;
+						$value = false;
+					}
+					var_dump($variable);
+					$value = $variable->name;
 				} else {
-					$value = $_POST[$name];
-					foreach ( $checks as $check ) {
+					switch ( $force_method ) {
+						case "POST":
+							$variable = $request->post($name);
+							break;
+
+						case "GET":
+							$variable = $request->get($name);
+							break;
+
+						case false:
+							$variable = $request->post($name) || $value = $request->get($name);
+							break;
+
+						default:
+							throw new \BadMethodCallException("Method {$force_method} is not suported, use POST, GET, or false for no method specified.");
+					}
+					if ( !is_bool($variable)) {
+						$value = $variable->value;
+					}
+				}
+
+				if ( in_array("required", $settings) && ( $value === false || $variable === false)) {
+					if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("no_required_value", $name, $value)); }
+					else { return false; }
+				} elseif ( $value === false || $variable === false) {
+					$resultSet[$name] = $value;
+					break;
+				}
+				foreach ( $settings as $check ) {
+					if ( str_contains($check, ":")) {
+						switch (strtok($check, ':')) {
+							case 'exists':
+								$exp = explode(':', $check, 2);
+								$table = end($exp);
+								if ( $GLOBALS["database"]->exists($table, [$name => $value]) ) {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_exist", $name, $value)); }
+									else { return false; }
+
+								}
+								break;
+
+							case 'unique':
+								$exp = explode(':', $check, 2);
+								$table = end($exp);
+								if ( $GLOBALS["database"]->exists($table, [$name => $value]) ) {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_uniqe", $name, $value)); }
+									else { return false; }
+								} else {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								}
+								break;
+
+							case 'between':
+								$exp = explode(',', $check, 2);
+								$max = end($exp);
+								$exp = explode(':', explode(',', $check, 2)[0], 2);
+								$min = end($exp);
+								//throw new \ErrorException("xd");
+								if ( is_string($value)) {
+									if ( $max >= strlen($value) && strlen($value) >= $min ) {
+										if ($check == end($settings)) {
+											$resultSet[$name] = $value;
+										}
+									} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("length_not_in_range", $name, $value)); }
+									else { return false; }
+									}
+								} elseif ( is_int($value)) {
+										if ( $min >= $value && $value >= $max ) {
+										if ($check == end($settings)) {
+											$resultSet[$name] = $value;
+										}
+									} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("number_not_in_range", $name, $value)); }
+									else { return false; }
+									}
+								}
+								break;
+
+							case 'extension':
+								if ( property_exists($variable, "tmp_name")) {
+									$extension = strtolower(pathinfo(basename($variable->name),PATHINFO_EXTENSION));
+									$exp =explode(':', $check, 2);
+									if ($extension == end($exp)) {
+										if ($check == end($settings)) {
+											$resultSet[$name] = $value;
+										}
+									} else {
+										if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_extension_not_supported", $name, $extension)); }
+										else { return false; }
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("not_a_file", $name, $value)); }
+									else { return false; }
+								}
+								break;
+
+							case 'same':
+								$exp = explode(':', $check, 2);
+								$var = end($exp);
+								if ( $force_method == "POST" ) {
+									$var = $request->post($var);
+								} elseif ( $force_method == "GET") {
+									$var = $request->get($var);
+								}
+								if ( $var === false ) {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_uniqe", $name, $value)); }
+									else { return false; }
+								}
+								if ( $value == ($var->value) ) {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_uniqe", $name, $value)); }
+									else { return false; }
+								}
+								break;
+
+							case 'size':
+
+								if ( property_exists($variable, "tmp_name")) {
+									$exp = explode(',', $check, 2);
+									$max = end($exp);
+									$exp = explode(':', explode(',', $check, 2)[0], 2);
+									$min = end($exp);
+									if ( $max >= $variable->size && $variable->size >= $min ) {
+										if ($check == end($settings)) {
+											$resultSet[$name] = $value;
+										}
+									} else {
+										if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("file_size_too_large", $name, $value)); }
+										else { return false; }
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("not_a_file", $name, $value)); }
+									else { return false; }
+								}
+								break;
+						}
+					} else {
 						switch ($check) {
-							case "string":
-								if ( !self::validate_string($value) ) {
-									return Redirect::back(error: "Value {$name} must be a string");
+							case 'required':
+								if ( self::required($value) ) {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("no_required_value", $name, $value)); }
+									else { return false; }
 								}
 								break;
-							case "email":
-								if ( !self::validate_email($value) ) {
-									return Redirect::back(error: "Value of {$name} field must be a correct email");
+
+							case 'string':
+								if ( self::is_string($value) ) {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_no_type", $name, $value)); }
+									else { return false; }
 								}
 								break;
-							case "Users:unique":
-								if ( !self::validate_users_unique($name, $value) ) {
-									return Redirect::back(error: "Provided value in field {$name} is already taken");
+
+							case 'email':
+								if ( self::is_email($value) ) {
+									if ($check == end($settings)) {
+										$resultSet[$name] = $value;
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_no_email", $name, $value)); }
+									else { return false; }
 								}
 								break;
-							case "file":
-								if ( !self::validate_file($name) ) {
-									return Redirect::back(error:  "{$name} must be an image");
+							case 'image':
+								if ( property_exists($variable, "tmp_name")) {
+									var_dump($variable);
+									$check = getimagesize($variable->tmp_name);
+									if($check !== false) {
+										if ($check == end($settings)) {
+											$resultSet[$name] = $value;
+										}
+									} else {
+										if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_image", $name, $value)); }
+										else { return false; }
+									}
+								} else {
+									if ( $redirectInvalid ) { Redirect::back(error: Message::validate_response("value_not_image", $name, $value)); }
+									else { return false; }
 								}
 								break;
 							default:
@@ -139,104 +352,28 @@ use Languages\Message;
 					}
 				}
 			}
+			return true;
 		}
 
-		protected static function validate_string($value) {
-			return is_string($value);
-		}
-
-		protected static function validate_email($value) {
-			return filter_var($value, FILTER_VALIDATE_EMAIL);
-		}
-
-		protected static function validate_users_unique($field, $value) {
-			return !$GLOBALS["database"]->exists("users", [$field => $value]);
-		}
-
-		protected static function validate_file($name) {
-			if ( empty($_FILES["fileToUpload"][$name])) {
-				return false;
+		protected static function required($variable) {
+			if ( is_string($variable) ) {
+				$variable = preg_replace('/\s+/', '', $variable);
 			}
-			$check = getimagesize($_FILES["fileToUpload"][$name]);
-			if ( $check !== false ) {
+			if ( $variable ) {
 				return true;
 			} else {
 				return false;
 			}
 		}
-	*/
-	}
 
-	class Variable {
-		public string $name;
-		public mixed $value;
-
-		public function __construct(string $name, mixed $value) {
-			$this->name = $name;
-			$this->value = $value;
-		}
-	}
-
-	class File {
-		public string $key;
-		public string $name;
-		public string $type;
-		public string $extension;
-		public string $tmp_name;
-		public int $error;
-		public int $size;
-
-		public function __construct($key, $file) {
-			$this->key = $key;
-			$this->name = $file["name"];
-			$this->type = $file["type"];
-			$this->extension = pathinfo( $file["name"], PATHINFO_EXTENSION );
-			$this->tmp_name = $file["tmp_name"];
-			$this->error = $file["error"];
-			$this->size = $file["size"];
+		protected static function is_string($variable) {
+			return is_string($variable);
 		}
 
-		public function move($destination, $root = true, $name = Null ): bool {
-			$name = $name?$name:$this->name;
-			$path = $root?$GLOBALS['rootPath']:"";
-			if ( !str_ends_with($destination, "/") ) { $destination .= "/"; };
-			if ( !str_starts_with($destination, "/") ) { $destination = "/" . $destination; };
-			$path .= "{$destination}{$name}.{$this->extension}";
-			$status = move_uploaded_file($this->tmp_name, $path);
-			return $status;
+		protected static function is_email($variable) {
+			return filter_var($variable, FILTER_VALIDATE_EMAIL);
 		}
-	}
-
-	class Validate {
-		public static function scheme($scheme, Request $request, string | bool $force_method = "POST") {
-			foreach ( $scheme as $name => $settings ) {
-				if ( in_array("file", $settings) ) {
-					$value = $request->file($name);
-				} else {
-					switch ( $force_method ) {
-						case "POST":
-							$value = $request->post($name);
-							break;
-
-						case "GET":
-							$value = $request->get($name);
-							break;
-
-						case false:
-							$value = $request->post($name) || $value = $request->get($name);
-							break;
-
-						default:
-							throw new \BadMethodCallException("Method {$force_method} is not suported, use POST, GET, or false for no method specified.");
-					}
-				}
-				if ( in_array("required", $settings) && $value === false ) {
-					Redirect::back(error: Message::validate_response("no_required_value", $name, $value));
-				} elseif ( $value === false ) {
-					break;
-				}
 
 
-			}
-		}
+
 	}

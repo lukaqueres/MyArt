@@ -23,4 +23,5 @@ use \ErrorException;
 				$string = str_replace("\{$name\}", $value, $string);
 			}
 		}
+
     }

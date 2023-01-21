@@ -2,6 +2,8 @@
 
 namespace Dependencies;
 
+use App\Models\User;
+
     class Session {
         protected array $reservedKeys = array("FLASH");
 

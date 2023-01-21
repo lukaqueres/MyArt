@@ -1,5 +1,5 @@
 <?php
-	use Dependencies\User;
+	use App\Models\User;
 	use Dependencies\Session;
 
 	use Dependencies\HTMLObject;
@@ -22,23 +22,23 @@
 			Pages
 		</div>
 		<div class="panel-category" data-element_category="users">
-			<?php
+            <?php
 			$myDiv = new HTMLObject(tag: "user-details");
-			$myDiv->attributes->add(["avatar" => Session::get("user")->avatar(), "username"  => Session::get("user")->username, "email" => Session::get("user")->email, "edit" => true]);
+			$myDiv->attributes->add(["avatar" => Session::get("user")->avatar(), "username"  => Session::get("user")->username, "email" => Session::get("user")->email, "edit" => true, "u_id" => "me"]);
 			print $myDiv;
-			?>
+            ?>
 			<p>Users:</p>
 			<div class="user-list">
-				<?php
+                <?php
 				foreach( User::all() as $user ) {
 					$userDiv = new HTMLObject(tag: "user-details");
 					$userDiv->attributes->add(["avatar" => $user->avatar, "username"  => $user->username, "email" => $user->email]);
 					if ( Session::get("user")->is_owner && Session::get("user")->email <> $user->email ) {
-						$userDiv->attributes->add(["edit" => true, "transfer_owner" => true]);
+						$userDiv->attributes->add(["edit" => true, "transfer_owner" => true, "u_id" => $user->id()]);
 					}
 					print $userDiv;
 				}
-				?>
+                ?>
                 <user-details typeof="add_new_user"></user-details>
 			</div>
 				

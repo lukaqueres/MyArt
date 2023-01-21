@@ -9,6 +9,8 @@
     Dependencies\Autoloader::register();
     new Dependencies\Session();
 
+    // Dependencies\Session::clear(); # - Reset session in case 
+
     $GLOBALS["database"] = new Dependencies\Database(credentials: ["servername"=>$host, "username"=>$username, "password"=>$password, "dbname"=>$db]);
     $GLOBALS["request"] = new Web\Models\Request();
     if (Dependencies\Session::user()) {

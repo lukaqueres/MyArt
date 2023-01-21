@@ -174,7 +174,7 @@ use mysqli_result;
 			$querry = "SELECT * FROM {$table} WHERE ";
 			$querry .= $this->assocToStr(splitter: " AND ", separator: " = ", assoc: $statement, quotes: true);
 			$this->querry = $querry;
-			print $querry;
+			// print $querry;
 			$this->result = $this->connection->query($querry);
 			if( $this->result->num_rows <= 0 ) { return false; }
 			else { return true; };
@@ -280,8 +280,6 @@ use mysqli_result;
 			}
 		}
 
-		// ADD UPDATE AND DELETE
-
 		public function update(string $table, array $values, array $condition = Null): int {
 			$values = $this->assocToStr(splitter: ", ", separator: " = ", assoc: $values, quotes: true);
 			if ( count($condition) <> 0 ) {
@@ -293,7 +291,12 @@ use mysqli_result;
 		}
 
 		public function delete(string $table, array $condition = Null): int {
-			return 0;
+			if ( count($condition) <> 0 ) {
+				$conditions = $this->assocToStr(splitter: " AND ", separator: " = ", assoc: $condition, quotes: true);
+			}
+			$querry = sprintf("DELETE FROM {$table} %s", $condition == Null?"":"WHERE {$conditions}");
+			$this->connection->query($querry);
+			return $this->connection->affected_rows;
 		}
 	}
 

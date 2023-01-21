@@ -2,49 +2,60 @@
 
 namespace  Web;
 
-    use Web\Models\Route;
-    use Web\Models\View;
-    use Web\Models\Redirect;
-    use Web\Models\Middleware;
+	use Web\Models\Route;
+	use Web\Models\View;
+	use Web\Models\Redirect;
+	use Web\Models\Middleware;
 
-    use Web\Controllers\MainController;
-    use Web\Controllers\MyArtController;
-    use Web\Controllers\AuthController;
+	/*
+	use Web\Controllers\UserController;
+	use Web\Controllers\MainController;
+	use Web\Controllers\MyArtController;
+	use Web\Controllers\AuthController;
+	*/
+	//var_dump($GLOBALS["request"]);
+	//throw new \ErrorException($_SERVER['REQUEST_URI']);
 
-    //var_dump($GLOBALS["request"]);
-    //throw new \ErrorException($_SERVER['REQUEST_URI']);
+	$request = $GLOBALS["request"];
 
-    if ( Route::get("/myart/", function () {
-        MainController::index();
-    })) { return; };
-    if ( Route::get("/myart/login", function () {
-        View::return("login");
-    })) { Middleware::authUser(); return; };
 
-    if ( Route::post("/myart/authorize", function () {
-        AuthController::authorize();
-    })) { return; };
+	Route::get("/myart/", "MainController@index");
 
-    if ( Route::get("/myart/unauthorize", function () {
-        AuthController::unauthorize();
-    })) { return; };
+	Route::post("/myart/authorize", "AuthController@authorize");
 
-    if ( Route::get("/myart/myart", function () {
-        MyArtController::overview();
-    })) { Middleware::authUser(); return; };
+	Route::get("/myart/unauthorize", "AuthController@unauthorize");
 
-    if ( Route::post("/myart/users/transfer_owner", function () {
-        MyArtController::changeOwner();
-    })) { Middleware::authOwner(); return; };
+	Route::get("/myart/myart",
+		"MyArtController@overview",
+		middleware: Middleware::authUser());
 
-    if ( Route::post("/myart/users/edit/user", function () {
-        MyArtController::editUser();
-    })) { Middleware::authOwner(); return; };
+	Route::get("/myart/articles",
+		"MyArtController@articles",
+		middleware: Middleware::authUser());
 
-    if ( Route::get("/myart/articles", function () {
-        MyArtController::articles();
-    })) { Middleware::authUser(); return; };
+	/*
+	 * User management
+	*/
 
-    # var_dump($_SERVER['REQUEST_URI']);
+	Route::post("/myart/users/me/edit",   // - Edit user from current session -
+		"UserController@editMe",
+		middleware: Middleware::authUser()); 
+	Route::post("/myart/users/{id}/edit", // - Edit selected user -
+		"UserController@edit",
+		middleware: Middleware::authOwner()); 
 
-    Redirect::to($_SERVER['REQUEST_URI'], statusCode: 404, exit: true);
+	Route::post("/myart/users/{id}/change-owner", // - Change owner to selected user -
+		"UserController@changeOwner",
+		middleware: Middleware::authOwner()); 
+
+	Route::post("/myart/users/add",       // - Create new user -
+		"UserController@add",
+		middleware: Middleware::authOwner());
+
+	Route::post("/myart/users/{id}/delete",
+		"UserController@delete",
+		middleware: Middleware::authOwner()); // - Delete selected user -
+
+	# var_dump($_SERVER['REQUEST_URI']);
+
+	Redirect::to($_SERVER['REQUEST_URI'], statusCode: 404, exit: true);
